@@ -849,3 +849,251 @@ class ExASPIMAcquisition(Acquisition):
             tile_channel = tile["channel"]
             if tile_channel not in self.instrument.channels:
                 raise ValueError(f"channel {tile_channel} is not in {self.instrument.channels}")
+
+
+class ViVExASPIMAcquisition(ExASPIMAcquisition):
+    """Acquisition subclass for Virtual V ExASPIM"""
+    
+    def __init__(self, instrument: Instrument, config_filename: str, yaml_handler: YAML, log_level="INFO"):
+        super().__init__(instrument,config_filename,yaml_handler,log_level)
+        
+    def run(self) -> None:
+        """
+        Run the acquisition process.
+
+        :raises ValueError: If there is not enough local disk space.
+        """
+        # verify acquisition
+        self._verify_acquisition()
+
+        # set acquisition name
+        self._set_acquisition_name()
+
+        # create directories
+        self._create_directories()
+
+        # initialize threads and buffers
+        file_transfer_threads = dict()
+
+        # store devices and routines
+        camera, camera_name = self._grab_first(self.instrument.cameras)  # only 1 camera for exaspim
+        scanning_stage, _ = self._grab_first(self.instrument.scanning_stages)  # only 1 scanning stage for exaspim
+        daq, _ = self._grab_first(self.instrument.daqs)  # only 1 daq for exaspim
+        writer, _ = self._grab_first(self.writers[camera_name])  # only 1 writer for exaspim
+        if self.file_transfers:
+            file_transfer, _ = self._grab_first(self.file_transfers[camera_name])  # only 1 file transfer for exaspim
+        else:
+            file_transfer = dict()
+        if self.processes:
+            processes = self.processes[camera_name]  # processes could be > so leave as a dictionary
+        else:
+            processes = dict()
+
+        for tile in self.config["acquisition"]["tiles"]:
+
+            # number of times to repeat tile -> pulled from GUI only make sure in gui.yaml file
+            for repeat in range(tile["repeats"]):
+
+                # wait for start delay -> pulled from GUI only make sure in gui.yaml file
+                start_delay = tile["start_delay"]
+                self.log.info(f"waiting for start delay = {start_delay} [s]")
+                time.sleep(tile["start_delay"])
+
+                tile_num = tile["tile_number"]
+                tile_channel = tile["channel"]
+                tile_prefix = tile["prefix"]
+                if repeat > 0:
+                    base_filename = f"{tile_prefix}_{tile_num:06}_ch_{tile_channel}_repeat_{repeat}"
+                else:
+                    base_filename = f"{tile_prefix}_{tile_num:06}_ch_{tile_channel}"
+
+                self.log.info(f"starting tile {base_filename}")
+
+                # check length of scan
+                round_z_mm = int(tile["round_z_mm"])
+                if (
+                    tile["steps"] % round_z_mm != 0
+                ):  # must be divisible by round_z_mm for direct use of IMS pyramid volumes
+                    tile_count_px = round_z_mm * math.ceil(tile["steps"] / round_z_mm)
+                    tile["steps"] = tile_count_px
+                    self.log.info(f"adjusting tile frame count to be divisible by {round_z_mm} -> {tile_count_px} [px]")
+
+                # move all tiling stages to correct positions
+                for tiling_stage_id, tiling_stage in self.instrument.tiling_stages.items():
+                    # grab stage axis letter
+                    instrument_axis = tiling_stage.instrument_axis
+                    tile_position = tile["position_mm"][instrument_axis]
+                    self.log.info(f"moving stage {tiling_stage_id} to {instrument_axis} = {tile_position} mm")
+                    tiling_stage.move_absolute_mm(tile_position, wait=False)
+                    # wait on tiling stage
+                    while tiling_stage.is_axis_moving():
+                        self.log.info(
+                            f"waiting for stage {tiling_stage_id}: {instrument_axis} ="
+                            f"{tiling_stage.position_mm} -> {tile_position} mm"
+                        )
+                        time.sleep(1.0)
+
+                # prepare the scanning stage for step and shoot behavior
+                # TODO: change this to stage_scan behavior
+                self.log.info("setting up scanning stage")
+                instrument_axis = scanning_stage.instrument_axis
+                tile_position = tile["position_mm"][instrument_axis]
+                backlash_removal_position = tile_position - 0.01
+                self.log.info(f"moving scanning stage to {instrument_axis} = {backlash_removal_position} mm")
+                scanning_stage.move_absolute_mm(tile_position - 0.01, wait=False)
+                self.log.info(f"moving stage to {instrument_axis} = {tile_position} mm")
+                scanning_stage.move_absolute_mm(tile_position, wait=False)
+                self.log.info("backlash on scanning stage removed")
+                step_size_um = tile["step_size"]
+                self.log.info(f"setting step shoot scan step size to {step_size_um} um")
+                scanning_stage.setup_step_shoot_scan(step_size_um)
+                # wait on scanning stage
+                while scanning_stage.is_axis_moving():
+                    self.log.info(
+                        f"waiting for scanning stage: {instrument_axis} = "
+                        f"{scanning_stage.position_mm} -> {tile_position} mm"
+                    )
+
+                # setup channel i.e. laser and filter wheels
+                self.log.info(f"setting up channel: {tile_channel}")
+                channel = self.instrument.channels[tile_channel]
+                for device_type, devices in channel.items():
+                    for device_name in devices:
+                        device = getattr(self.instrument, device_type)[device_name]
+                        if device_type in ["lasers", "filters"]:
+                            device.enable()
+                        for setting, value in tile.get(device_name, {}).items():
+                            setattr(device, setting, value)
+                            self.log.info(f"setting {setting} for {device_type} {device_name} to {value}")
+
+                # setup daq
+                if daq.tasks.get("ao_task", None) is not None:
+                    daq.add_task("ao")
+                    daq.generate_waveforms("ao", tile_channel)
+                    daq.write_ao_waveforms()
+                if daq.tasks.get("do_task", None) is not None:
+                    daq.add_task("do")
+                    daq.generate_waveforms("do", tile_channel)
+                    daq.write_do_waveforms()
+                if daq.tasks.get("co_task", None) is not None:
+                    pulse_count = writer.chunk_count_px  # number of pulses matched to number of frames in one chunk
+                    daq.add_task("co", pulse_count)
+
+                # log daq values
+                for name, port_values in daq.tasks["ao_task"]["ports"].items():
+                    parameters = port_values["parameters"]
+                    port = port_values["port"]
+                    for parameter, channel_values in parameters.items():
+                        daq_value = channel_values["channels"][tile_channel]
+                        self.log.info(f"{name} on {port}: {parameter} = {daq_value}")
+
+                # run any pre-routines for all devices
+                for device_name, routine_dictionary in getattr(self, "routines", {}).items():
+                    device_type = self.instrument.config["instrument"]["devices"][device_name]["type"]
+                    self.log.info(f"running routines for {device_type} {device_name}")
+                    for routine_name, routine in routine_dictionary.items():
+                        device_object = getattr(self.instrument, inflection.pluralize(device_type))[device_name]
+                        routine.filename = base_filename + "_" + routine_name
+                        routine.start(device=device_object)
+
+                # setup writers
+                self.log.info("setting up writer")
+                writer.row_count_px = camera.image_height_px
+                writer.column_count_px = camera.image_width_px
+                writer.frame_count_px = tile["steps"]
+                writer.x_position_mm = tile["position_mm"]["x"]
+                writer.y_position_mm = tile["position_mm"]["y"]
+                writer.z_position_mm = tile["position_mm"]["z"]
+                writer.x_voxel_size_um = camera.sampling_um_px
+                writer.y_voxel_size_um = camera.sampling_um_px
+                writer.z_voxel_size_um = tile["step_size"]
+                writer.filename = base_filename
+                writer.channel = tile["channel"]
+
+                if tile["prechecks"] == "on":
+                    # estimate the compresion ratio
+                    compression_ratio = self.check_compression_ratio(camera, writer)
+                    # check write speed
+                    if file_transfer:
+                        self.check_write_speed(
+                            daq=daq, writer=writer, file_transfer=file_transfer, compression_ratio=compression_ratio
+                        )
+                    else:
+                        self.check_write_speed(daq=daq, writer=writer, compression_ratio=compression_ratio)
+                    # check local memory
+                    self.check_system_memory(writer)
+                    # check gpu memory
+                    self.check_gpu_memory(writer)
+                else:
+                    compression_ratio = 1.0
+
+                # check local disk space and run if enough disk space
+                # check external disk space
+                if file_transfer:
+                    while not self.check_external_disk_space(writer, file_transfer, compression_ratio):
+                        # recheck external disk space every minute, if not enough space, do not run
+                        time.sleep(60)
+                # check local disk space and run if enough disk space
+                if self.check_local_disk_space(writer, compression_ratio):
+                    self.acquisition_engine(tile, base_filename, camera, daq, writer, processes, scanning_stage)
+                # if not enough local disk space, but file transfers are running
+                # wait for them to finish, because this will free up disk space
+                elif len(self.file_transfer_threads) != 0:
+                    # check if any transfer threads are still running, if so wait on them
+                    for tile_num, threads_dict in self.file_transfer_threads.items():
+                        for tile_channel, transfer_thread in threads_dict.items():
+                            if transfer_thread.is_alive():
+                                transfer_thread.wait_until_finished()
+                # otherwise this is the first tile and there is simply not enough disk space
+                # for the first tile
+                else:
+                    raise ValueError("not enough local disk space")
+
+                # create and start transfer threads from previous tile
+                if file_transfer:
+                    if tile_num not in file_transfer_threads:
+                        file_transfer_threads[tile_num] = dict()
+                    if tile_channel not in file_transfer_threads[tile_num]:
+                        file_transfer_threads[tile_num][tile_channel] = dict()
+                    file_transfer_threads[tile_num][tile_channel][repeat] = file_transfer
+                    file_transfer_threads[tile_num][tile_channel][repeat].filename = base_filename
+                    self.log.info(f"starting file transfer for {base_filename}")
+                    file_transfer_threads[tile_num][tile_channel][repeat].start()
+
+        # wait for last tiles file transfer
+        if file_transfer:
+            for tile_num, threads_dict in file_transfer_threads.items():
+                for tile_channel, repeat_dict in threads_dict.items():
+                    for repeat, thread in repeat_dict.items():
+                        if thread.is_alive():
+                            thread.wait_until_finished()
+
+        if getattr(self, "file_transfers", {}) != {}:  # save to external paths
+            # save acquisition config
+            for device_name, transfer_dict in getattr(self, "file_transfers", {}).items():
+                for transfer in transfer_dict.values():
+                    self.update_current_state_config()
+                    self.save_config(
+                        Path(transfer.external_path, transfer.acquisition_name) / "acquisition_config.yaml"
+                    )
+
+            # save instrument config
+            for device_name, transfer_dict in getattr(self, "file_transfers", {}).items():
+                for transfer in transfer_dict.values():
+                    self.instrument.update_current_state_config()
+                    self.instrument.save_config(
+                        Path(transfer.external_path, transfer.acquisition_name) / "instrument_config.yaml"
+                    )
+
+        else:  # no transfers so save locally
+            # save acquisition config
+            for device_name, writer_dict in self.writers.items():
+                for writer in writer_dict.values():
+                    self.update_current_state_config()
+                    self.save_config(Path(writer.path, writer.acquisition_name) / "acquisition_config.yaml")
+
+            # save instrument config
+            for device_name, writer_dict in self.writers.items():
+                for writer in writer_dict.values():
+                    self.instrument.update_current_state_config()
+                    self.instrument.save_config(Path(writer.path, writer.acquisition_name) / "instrument_config.yaml")

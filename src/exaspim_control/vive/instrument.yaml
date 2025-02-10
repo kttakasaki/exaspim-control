@@ -1,25 +1,17 @@
 instrument:
-  id: exaspim-01
+  id: ac-exaspim-01
   channels:
-    "561":
-      lasers: [561 nm]
-      cameras: [vp-151mx]
-      focusing_stages: [left, right, camera]
-    "639":
-      lasers: [639 nm]
-      cameras: [vp-151mx]
-      focusing_stages: [left, right, camera]
     "488":
       lasers: [488 nm]
       cameras: [vp-151mx]
-      focusing_stages: [left, right, camera]
+      focusing_stages: []
   devices:
     vp-151mx:
       type: camera
       driver: voxel.devices.camera.vieworks.egrabber
       module: VieworksCamera
       init:
-        id: MP151BBX006
+        id: MP151BBX029
       properties:
         exposure_time_ms: 10.0
         pixel_type: mono16
@@ -38,33 +30,15 @@ instrument:
       module: GenesisMXLaser
       color: blue
       init:
-        id: A700467EP203
+        id: A678976EP217
         wavelength: 488
-        maximum_power_mw: 1000
-    561 nm:
-      type: laser
-      driver: voxel.devices.laser.coherent.genesis_mx
-      module: GenesisMXLaser
-      color: blue
-      init:
-        id: J687424BP914
-        wavelength: 561
-        maximum_power_mw: 1000
-    639 nm:
-      type: laser
-      driver: voxel.devices.laser.coherent.genesis_mx
-      module: GenesisMXLaser
-      color: blue
-      init:
-        id: R708588EQ173
-        wavelength: 639
         maximum_power_mw: 1000
     tiger controller:
       type: stage
       driver: tigerasi.tiger_controller
       module: TigerController
       init:
-        com_port: COM5
+        com_port: COM3
       subdevices:
         z:
           type: scanning_stage
@@ -76,7 +50,7 @@ instrument:
           properties:
             mode: step shoot
             speed_mm_s: 1.0
-            backlash_mm: 0.0
+            #backlash_mm: 0.0
             acceleration_ms: 200.0
         x:
           type: tiling_stage
@@ -88,68 +62,20 @@ instrument:
           properties:
             mode: off
             speed_mm_s: 1.0
-            backlash_mm: 0.004
+            #backlash_mm: 0.004
             acceleration_ms: 200.0
         y:
           type: tiling_stage
           driver: voxel.devices.stage.asi.tiger
           module: TigerStage
           init:
-            hardware_axis: v
+            hardware_axis: y
             instrument_axis: y
           properties:
             mode: off
             speed_mm_s: 1.0
-            backlash_mm: 0.004
+            #backlash_mm: 0.004
             acceleration_ms: 200.0
-        theta:
-          type: focusing_stage
-          driver: voxel.devices.stage.asi.tiger
-          module: TigerStage
-          init:
-            hardware_axis: t
-            instrument_axis: t
-          properties:
-            mode: off
-            speed_mm_s: 0.3
-            backlash_mm: 0.004
-            acceleration_ms: 200.0
-        left:
-          type: focusing_stage
-          driver: voxel.devices.stage.asi.tiger
-          module: TigerStage
-          init:
-            hardware_axis: a
-            instrument_axis: a
-          properties:
-            mode: off
-            speed_mm_s: 0.01
-            backlash_mm: 0.004
-            acceleration_ms: 5.0
-        right:
-          type: focusing_stage
-          driver: voxel.devices.stage.asi.tiger
-          module: TigerStage
-          init:
-            hardware_axis: b
-            instrument_axis: b
-          properties:
-            mode: off
-            speed_mm_s: 0.01
-            backlash_mm: 0.004
-            acceleration_ms: 5.0
-        camera:
-          type: focusing_stage
-          driver: voxel.devices.stage.asi.tiger
-          module: TigerStage
-          init:
-            hardware_axis: m
-            instrument_axis: m
-          properties:
-            mode: off
-            speed_mm_s: 0.01
-            backlash_mm: 0.004
-            acceleration_ms: 20.0
         # joystick:
         #    type: joystick
         #    driver: voxel.devices.joystick.asi
@@ -176,13 +102,6 @@ instrument:
         #        a: a
         #        b: b
         #        m: m
-    temperature_sensor:
-      type: temperature_sensor
-      driver: voxel.devices.temperature_sensor.thorlabs.tsp0b1
-      module: TSP01BTemperatureSensor
-      init:
-        id: M01221847
-        channel: TH1
     # power meter:
     #   type: power_meter
     #   driver: voxel.devices.power_meter.thorlabs.pm100
@@ -196,7 +115,7 @@ instrument:
     #   module: MFF1101FlipMount
     #   init:
     #     id: powell lens
-    #     conn: "37008111"
+    #     conn: '37008111'
     #     positions:
     #       alignment mode: 0
     #       imaging mode: 1
@@ -231,7 +150,7 @@ instrument:
       driver: voxel.devices.daq.ni
       module: NIDAQ
       init:
-        dev: Dev2
+        dev: Dev1
       properties:
         tasks:
           ao_task:
@@ -510,17 +429,27 @@ instrument:
             timing:
               period_time_ms: 544.0
               rest_time_ms: 150.0
-              retriggerable: "on"
+              retriggerable: 'on'
               sample_mode: finite
               sampling_frequency_hz: 10000
-              trigger_mode: "on"
+              trigger_mode: 'on'
               trigger_polarity: rising
               trigger_port: PFI0
-          co_task:
+          co_live_task:
             counters:
               - ctr0
-            name: co task
+            name: co live task
             timing:
               frequency_hz: 1.4
               output_port: PFI0
-              trigger_mode: "off"
+              trigger_mode: 'off'
+          co_acq_task:
+            counters:
+              - ctr0
+            name: co acq task
+            timing:
+              frequency_hz: 1.4
+              output_port: PFI0
+              trigger_mode: 'on'
+              trigger_polarity: rising
+              trigger_port: PFI1

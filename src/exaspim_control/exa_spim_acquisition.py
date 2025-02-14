@@ -878,6 +878,8 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
         # store devices and routines
         camera, camera_name = self._grab_first(self.instrument.cameras)  # only 1 camera for exaspim
         scanning_stage, _ = self._grab_first(self.instrument.scanning_stages)  # only 1 scanning stage for exaspim
+        initial_speed_mms = scanning_stage.speed_mm_s[scanning_stage.instrument_axis]
+        print(f"Initial speed of {initial_speed_mms}")
         daq, _ = self._grab_first(self.instrument.daqs)  # only 1 daq for exaspim
         writer, _ = self._grab_first(self.writers[camera_name])  # only 1 writer for exaspim
         if self.file_transfers:
@@ -937,16 +939,28 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
                 # TODO: change this to stage_scan behavior
                 self.log.info("setting up scanning stage")
                 instrument_axis = scanning_stage.instrument_axis
+                print(str(instrument_axis))
                 tile_position = tile["position_mm"][instrument_axis]
-                backlash_removal_position = tile_position - 0.01
-                self.log.info(f"moving scanning stage to {instrument_axis} = {backlash_removal_position} mm")
-                scanning_stage.move_absolute_mm(tile_position - 0.01, wait=False)
+                #backlash_removal_position = tile_position - 0.01
+                #self.log.info(f"moving scanning stage to {instrument_axis} = {backlash_removal_position} mm")
+                #scanning_stage.move_absolute_mm(tile_position - 0.01, wait=False)
                 self.log.info(f"moving stage to {instrument_axis} = {tile_position} mm")
                 scanning_stage.move_absolute_mm(tile_position, wait=False)
-                self.log.info("backlash on scanning stage removed")
+                #self.log.info("backlash on scanning stage removed")
                 step_size_um = tile["step_size"]
-                self.log.info(f"setting step shoot scan step size to {step_size_um} um")
-                scanning_stage.setup_step_shoot_scan(step_size_um)
+                slow_instrument_axis = "y"
+                self.log.info(f"setting stage scan with frame interval {step_size_um} um")
+                scanning_stage.setup_single_axis_scan(fast_axis_start_position=tile_position,
+                                                #slow_axis_start_position=tile["position_mm"][slow_instrument_axis],
+                                                #slow_axis_stop_position=tile["position_mm"][slow_instrument_axis],
+                                                frame_count=tile_count_px,
+                                                frame_interval_um=step_size_um,
+                                                pattern="raster",
+                                                retrace_speed_percent=70)
+                frame_rate_hz = 1.4
+                scan_speed_mms = step_size_um*frame_rate_hz/1000
+                setattr(scanning_stage,"speed_mm_s",scan_speed_mms)
+                print(f"Speed set to {scan_speed_mms}")
                 # wait on scanning stage
                 while scanning_stage.is_axis_moving():
                     self.log.info(
@@ -967,6 +981,7 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
                             self.log.info(f"setting {setting} for {device_type} {device_name} to {value}")
 
                 # setup daq
+                # TODO: need to toggle trigger mode of co_task from off to on for acquisition to be triggered by stage SYNC
                 if daq.tasks.get("ao_task", None) is not None:
                     daq.add_task("ao")
                     daq.generate_waveforms("ao", tile_channel)
@@ -975,7 +990,16 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
                     daq.add_task("do")
                     daq.generate_waveforms("do", tile_channel)
                     daq.write_do_waveforms()
-                if daq.tasks.get("co_task", None) is not None:
+                if daq.tasks.get("co_acq_task", None) is not None:
+                    """ something along these lines...
+                    co_dict = daq.tasks.get("co_task")
+                    co_dict["trigger_mode"] = "on"
+                    co_dict["trigger_polarity"] = "rising"
+                    co_dict["trigger_port"] = "PFI1"
+                    daq.tasks.set("co_task",co_dict)
+                    """
+                    daq.tasks.set("co_task",daq.tasks.get("co_acq_task"))
+                    self.log.info("co task: " + str(daq.tasks["co_task"]))
                     pulse_count = writer.chunk_count_px  # number of pulses matched to number of frames in one chunk
                     daq.add_task("co", pulse_count)
 
@@ -1059,6 +1083,12 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
                     file_transfer_threads[tile_num][tile_channel][repeat].filename = base_filename
                     self.log.info(f"starting file transfer for {base_filename}")
                     file_transfer_threads[tile_num][tile_channel][repeat].start()
+
+                self.log.info("starting stage scan")
+                scanning_stage.start()
+
+        setattr(scanning_stage,"speed_mm_s",initial_speed_mms)
+        print(f"Speed set to {initial_speed_mms}")
 
         # wait for last tiles file transfer
         if file_transfer:

@@ -184,9 +184,9 @@ class ExASPIMInstrumentView(InstrumentView):
                 self.instrument.lasers[new_laser_name].enable()
         self.livestream_channel = channel
         # change filter
-        for filter in self.channels[self.livestream_channel].get("filters", []):
-            self.log.info(f"Enabling filter {filter}")
-            self.instrument.filters[filter].enable()
+        #for filter in self.channels[self.livestream_channel].get("filters", []):
+        #    self.log.info(f"Enabling filter {filter}")
+        #    self.instrument.filters[filter].enable()
 
     def setup_flip_mount_widgets(self) -> None:
         """

@@ -47,8 +47,8 @@ acquisition:
         driver: voxel.file_transfers.robocopy_zarr
         module: RobocopyFileTransfer
         init:
-          external_path: Z:\\scratch\\adam.glaser
-          local_path: D:\\
+          external_path: D:\\
+          local_path: C:\\DATA
         properties:
           verify_transfer: True
           max_retry: 3

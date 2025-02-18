@@ -42,17 +42,17 @@ acquisition:
           chunk_size_z_px: 32
           multiscale: True
           version: v3
-      robocopy:
-        type: file_transfer
-        driver: voxel.file_transfers.robocopy_zarr
-        module: RobocopyFileTransfer
-        init:
-          external_path: D:\\
-          local_path: C:\\DATA
-        properties:
-          verify_transfer: True
-          max_retry: 3
-          timeout_s: 60
+      #robocopy:
+      #  type: file_transfer
+      #  driver: voxel.file_transfers.robocopy_zarr
+      #  module: RobocopyFileTransfer
+      #  init:
+      #    external_path: D:\\
+      #    local_path: C:\\DATA
+      #  properties:
+      #    verify_transfer: True
+      #    max_retry: 3
+      #    timeout_s: 60
       # max_projection:
       #   type: process
       #   driver: voxel.processes.max_projection.cpu.numpy

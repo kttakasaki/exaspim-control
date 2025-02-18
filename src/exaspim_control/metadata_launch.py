@@ -95,8 +95,8 @@ class MetadataLaunch:
                 if file.endswith(".tiff") or file.endswith(".log") or file.endswith(".yaml"):
                     os.rename(str(Path(save_to, file)), str(Path(save_to, "derivatives", file)))
             # delete local directory
-            self.log.info(f"deleting {str(Path(transfer.local_path, transfer.acquisition_name))}")
-            shutil.rmtree(str(Path(transfer.local_path, transfer.acquisition_name)))
+            #self.log.info(f"deleting {str(Path(transfer.local_path, transfer.acquisition_name))}")
+            #shutil.rmtree(str(Path(transfer.local_path, transfer.acquisition_name)))
         else:  # no transfers so save locally
             for device_name, writer_dict in self.acquisition.writers.items():
                 for writer in writer_dict.values():

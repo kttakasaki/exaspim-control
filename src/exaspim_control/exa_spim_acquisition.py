@@ -361,19 +361,19 @@ class ExASPIMAcquisition(Acquisition):
                 # log metrics from devices
                 laser_name = self.instrument.channels[tile["channel"]]["lasers"][0]
                 laser = self.instrument.lasers[laser_name]
-                temperature_sensor, _ = self._grab_first(self.instrument.temperature_sensors)
+                #temperature_sensor, _ = self._grab_first(self.instrument.temperature_sensors)
                 memory_info = virtual_memory()
                 self.log.info(f"RAM in use = {memory_info.used / (1024 ** 3):.2f} GB")
                 self.log.info(f"laser {laser.id} power = {laser.power_mw:.2f} [mW]")
                 self.log.info(f"laser {laser.id} temperature = {laser.temperature_c:.2f} [mW]")
                 self.log.info(f"camera {camera.id} sensor temperature = {camera.sensor_temperature_c:.2f} [C]")
                 self.log.info(f"camera {camera.id} mainboard temperature = {camera.mainboard_temperature_c:.2f} [C]")
-                self.log.info(
-                    f"sensor {temperature_sensor.id} temperature = {temperature_sensor.temperature_c:.2f} [C]"
-                )
-                self.log.info(
-                    f"sensor {temperature_sensor.id} humidity = {temperature_sensor.relative_humidity_percent:.2f} [%]"
-                )
+                #self.log.info(
+                #    f"sensor {temperature_sensor.id} temperature = {temperature_sensor.temperature_c:.2f} [C]"
+                #)
+                #self.log.info(
+                #    f"sensor {temperature_sensor.id} humidity = {temperature_sensor.relative_humidity_percent:.2f} [%]"
+                #)
 
                 # start the camera
                 camera.stop()
@@ -798,8 +798,9 @@ class ExASPIMAcquisition(Acquisition):
         for writer_dictionary in self.writers.values():
             for writer in writer_dictionary.values():
                 local_path = Path(writer.path, self.acquisition_name)
-                if not os.path.isdir(local_path):
-                    os.makedirs(local_path)
+                print(local_path)
+                if not local_path.exists(): #os.path.isdir(local_path):
+                    local_path.mkdir(parents=True) #os.makedirs(local_path)
         # check if external directories exist and create if not
         if self.file_transfers:
             for file_transfer_dictionary in self.file_transfers.values():
@@ -891,7 +892,11 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
         else:
             processes = dict()
 
-        for tile in self.config["acquisition"]["tiles"]:
+        # TODO: intervene in normal acquisition setup by loading tile json here
+
+        self.config["acquisition"]["tiles"] = [{"repeats":1,"start_delay":1,"tile_number":0,"channel":"488","prefix":"vive","round_z_mm":1,"steps":1000,"step_size":-1.3,"position_mm":{"x":0,"y":0,"z":0},"prechecks":"off"}]
+
+        for tile in self.config["acquisition"]["tiles"]: # these are set by view.AcquisitionView
 
             # number of times to repeat tile -> pulled from GUI only make sure in gui.yaml file
             for repeat in range(tile["repeats"]):
@@ -921,26 +926,26 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
                     self.log.info(f"adjusting tile frame count to be divisible by {round_z_mm} -> {tile_count_px} [px]")
 
                 # move all tiling stages to correct positions
-                for tiling_stage_id, tiling_stage in self.instrument.tiling_stages.items():
-                    # grab stage axis letter
-                    instrument_axis = tiling_stage.instrument_axis
-                    tile_position = tile["position_mm"][instrument_axis]
-                    self.log.info(f"moving stage {tiling_stage_id} to {instrument_axis} = {tile_position} mm")
-                    tiling_stage.move_absolute_mm(tile_position, wait=False)
-                    # wait on tiling stage
-                    while tiling_stage.is_axis_moving():
-                        self.log.info(
-                            f"waiting for stage {tiling_stage_id}: {instrument_axis} ="
-                            f"{tiling_stage.position_mm} -> {tile_position} mm"
-                        )
-                        time.sleep(1.0)
+                #for tiling_stage_id, tiling_stage in self.instrument.tiling_stages.items():
+                #    # grab stage axis letter
+                #    instrument_axis = tiling_stage.instrument_axis
+                #    tile_position = tile["position_mm"][instrument_axis]
+                #    self.log.info(f"moving stage {tiling_stage_id} to {instrument_axis} = {tile_position} mm")
+                #    tiling_stage.move_absolute_mm(tile_position, wait=False)
+                #    # wait on tiling stage
+                #    while tiling_stage.is_axis_moving():
+                #        self.log.info(
+                #            f"waiting for stage {tiling_stage_id}: {instrument_axis} ="
+                #            f"{tiling_stage.position_mm} -> {tile_position} mm"
+                #        )
+                #        time.sleep(1.0)
 
                 # prepare the scanning stage for step and shoot behavior
                 # TODO: change this to stage_scan behavior
                 self.log.info("setting up scanning stage")
                 instrument_axis = scanning_stage.instrument_axis
                 print(str(instrument_axis))
-                tile_position = tile["position_mm"][instrument_axis]
+                tile_position = 1#tile["position_mm"][instrument_axis]
                 #backlash_removal_position = tile_position - 0.01
                 #self.log.info(f"moving scanning stage to {instrument_axis} = {backlash_removal_position} mm")
                 #scanning_stage.move_absolute_mm(tile_position - 0.01, wait=False)
@@ -953,7 +958,7 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
                 scanning_stage.setup_single_axis_scan(fast_axis_start_position=tile_position,
                                                 #slow_axis_start_position=tile["position_mm"][slow_instrument_axis],
                                                 #slow_axis_stop_position=tile["position_mm"][slow_instrument_axis],
-                                                frame_count=tile_count_px,
+                                                frame_count=tile["steps"],
                                                 frame_interval_um=step_size_um,
                                                 pattern="raster",
                                                 retrace_speed_percent=70)
@@ -998,10 +1003,13 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
                     co_dict["trigger_port"] = "PFI1"
                     daq.tasks.set("co_task",co_dict)
                     """
-                    daq.tasks.set("co_task",daq.tasks.get("co_acq_task"))
+                    daq.tasks["co_task"] = daq.tasks.get("co_acq_task")
                     self.log.info("co task: " + str(daq.tasks["co_task"]))
                     pulse_count = writer.chunk_count_px  # number of pulses matched to number of frames in one chunk
-                    daq.add_task("co", pulse_count)
+                    # TODO: implement counter output triggering in voxel.daq.ni
+                    # File "C:\Users\kevint\.conda\envs\voxel\Lib\site-packages\voxel\devices\daq\ni.py", line 193, in add_task
+                    # raise ValueError(f"triggering not support for counter output tasks.")
+                    #daq.add_task("co", pulse_count)
 
                 # log daq values
                 for name, port_values in daq.tasks["ao_task"]["ports"].items():

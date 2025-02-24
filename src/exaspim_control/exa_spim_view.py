@@ -361,6 +361,62 @@ class ExASPIMInstrumentView(InstrumentView):
             self.grab_frames_worker.yielded.disconnect()
             self.grab_frames_worker.yielded.connect(self.update_layer)
 
+
+    def setup_live(self, camera_name: str, frames=float("inf")) -> None:
+        """
+        Set up for either livestream or snapshot
+        :param camera_name: name of camera to set up
+        :param frames: how many frames to take
+        """
+
+        if self.grab_frames_worker.is_running:
+            if frames == 1:  # create snapshot layer with the latest image
+                layer = self.viewer.layers[f"{camera_name} {self.livestream_channel}"]
+                image = layer.data[0] if layer.multiscale else image.data
+                self.update_layer((image, camera_name), snapshot=True)
+            return
+
+        self.grab_frames_worker = self.grab_frames(camera_name, frames)
+
+        if frames == 1:  # pass in optional argument that this image is a snapshot
+            self.grab_frames_worker.yielded.connect(lambda args: self.update_layer(args, snapshot=True))
+        else:
+            self.grab_frames_worker.yielded.connect(lambda args: self.update_layer(args))
+
+        self.grab_frames_worker.finished.connect(lambda: self.dismantle_live(camera_name))
+        self.grab_frames_worker.start()
+
+        self.instrument.cameras[camera_name].prepare()
+        self.instrument.cameras[camera_name].start(frames)
+
+        for laser in self.channels[self.livestream_channel].get("lasers", []):
+            self.log.info(f"Enabling laser {laser}")
+            self.instrument.lasers[laser].enable()
+
+        #for filter in self.channels[self.livestream_channel].get("filters", []):
+        #    self.log.info(f"Enabling filter {filter}")
+        #    self.instrument.filters[filter].enable()
+
+        for daq_name, daq in self.instrument.daqs.items():
+            if daq_name == "pcie-6738":
+                self.log.info(f"starting live daq on {daq_name}")
+                if daq.tasks.get("ao_task", None) is not None:
+                    daq.add_task("ao")
+                    daq.generate_waveforms("ao", self.livestream_channel)
+                    daq.write_ao_waveforms()
+                if daq.tasks.get("do_task", None) is not None:
+                    daq.add_task("do")
+                    daq.generate_waveforms("do", self.livestream_channel)
+                    daq.write_do_waveforms()
+                if daq.tasks.get("co_live_task", None) is not None:
+                    daq.tasks["co_task"] = daq.tasks.get("co_live_task")
+                    self.log.info("co task: " + str(daq.tasks["co_task"]))
+                    pulse_count = daq.tasks["co_task"]["timing"].get("pulse_count", None)
+                    daq.add_task("co", pulse_count)
+
+                daq.start()
+
+
     def dismantle_live(self, camera_name: str) -> None:
         """
         Dismantle live view for the specified camera.
@@ -372,11 +428,12 @@ class ExASPIMInstrumentView(InstrumentView):
         for daq_name, daq in self.instrument.daqs.items():
             # wait for daq tasks to finish - prevents devices from stopping in
             # unsafe state, i.e. lasers still on
-            daq.co_task.stop()
-            # sleep to allow last ao to play with 10% buffer
-            time.sleep(1.0 / daq.co_frequency_hz * 1.1)
-            # stop the ao task
-            daq.ao_task.stop()
+            if daq_name == "pcie-6738":
+                daq.co_task.stop()
+                # sleep to allow last ao to play with 10% buffer
+                time.sleep(1.0 / daq.co_frequency_hz * 1.1)
+                # stop the ao task
+                daq.ao_task.stop()
 
 
 class ExASPIMAcquisitionView(AcquisitionView):

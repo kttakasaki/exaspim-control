@@ -174,7 +174,7 @@ class MetadataLaunch:
             voxel_size_z_um = tile["step_size"]
             tile_position_x_mm = tile["position_mm"]["x"]
             tile_position_y_mm = tile["position_mm"]["y"]
-            tile_position_z_mm = tile["position_mm"]["z"]
+            tile_position_z_mm = tile["position_mm"]["v"]
             tiles.append(
                 {
                     "file_name": f"{tile['prefix']}_{tile['tile_number']:06}_ch_{tile_ch}.ims",

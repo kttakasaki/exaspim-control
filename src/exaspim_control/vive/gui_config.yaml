@@ -108,7 +108,7 @@ instrument_view:
                       - "561"
                       - "639"
 acquisition_view:
-  coordinate_plane: [ "-x", "y", "z" ]
+  coordinate_plane: [ "-x", "y", "v" ]
   acquisition_widgets:
     channel_plan:
       init:

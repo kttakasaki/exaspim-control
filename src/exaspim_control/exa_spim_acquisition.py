@@ -381,7 +381,6 @@ class ExASPIMAcquisition(Acquisition):
                 camera.start()
 
                 # Start the daq tasks.
-                self.log.info("starting daq")
                 for task in [daq.ao_task, daq.do_task, daq.co_task]:  # must start co task last in list
                     if task is not None:
                         task.start()
@@ -882,6 +881,7 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
         initial_speed_mms = scanning_stage.speed_mm_s[scanning_stage.instrument_axis]
         print(f"Initial speed of {initial_speed_mms}")
         daq, _ = self._grab_first(self.instrument.daqs)  # only 1 daq for exaspim
+        print(str(list(self.instrument.daqs.keys())))
         writer, _ = self._grab_first(self.writers[camera_name])  # only 1 writer for exaspim
         if self.file_transfers:
             file_transfer, _ = self._grab_first(self.file_transfers[camera_name])  # only 1 file transfer for exaspim
@@ -893,8 +893,9 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
             processes = dict()
 
         # TODO: intervene in normal acquisition setup by loading tile json here
+        self.log.info("acq tiles: " + str(self.config["acquisition"]["tiles"]))
 
-        self.config["acquisition"]["tiles"] = [{"repeats":1,"start_delay":1,"tile_number":0,"channel":"488","prefix":"vive","round_z_mm":1,"steps":1000,"step_size":-1.3,"position_mm":{"x":0,"y":0,"z":0},"prechecks":"off"}]
+        #self.config["acquisition"]["tiles"] = [{"repeats":1,"start_delay":1,"tile_number":0,"channel":"488","prefix":"vive","round_z_mm":1,"steps":100,"step_size":-130.0,"position_mm":{"x":0,"y":0,"z":0},"prechecks":"off"}]
 
         for tile in self.config["acquisition"]["tiles"]: # these are set by view.AcquisitionView
 
@@ -917,7 +918,7 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
                 self.log.info(f"starting tile {base_filename}")
 
                 # check length of scan
-                round_z_mm = int(tile["round_z_mm"])
+                round_z_mm = 1 #int(tile["round_z_mm"])
                 if (
                     tile["steps"] % round_z_mm != 0
                 ):  # must be divisible by round_z_mm for direct use of IMS pyramid volumes
@@ -926,26 +927,28 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
                     self.log.info(f"adjusting tile frame count to be divisible by {round_z_mm} -> {tile_count_px} [px]")
 
                 # move all tiling stages to correct positions
-                #for tiling_stage_id, tiling_stage in self.instrument.tiling_stages.items():
-                #    # grab stage axis letter
-                #    instrument_axis = tiling_stage.instrument_axis
-                #    tile_position = tile["position_mm"][instrument_axis]
-                #    self.log.info(f"moving stage {tiling_stage_id} to {instrument_axis} = {tile_position} mm")
-                #    tiling_stage.move_absolute_mm(tile_position, wait=False)
-                #    # wait on tiling stage
-                #    while tiling_stage.is_axis_moving():
-                #        self.log.info(
-                #            f"waiting for stage {tiling_stage_id}: {instrument_axis} ="
-                #            f"{tiling_stage.position_mm} -> {tile_position} mm"
-                #        )
-                #        time.sleep(1.0)
+                for tiling_stage_id, tiling_stage in self.instrument.tiling_stages.items():
+                    # grab stage axis letter
+                    instrument_axis = tiling_stage.instrument_axis
+                    if instrument_axis == "y":
+                        tile_position = tile["position_mm"][instrument_axis]
+                        self.log.info(f"moving stage {tiling_stage_id} to {instrument_axis} = {tile_position} mm")
+                        tiling_stage.move_absolute_mm(tile_position, wait=False)
+                        # wait on tiling stage
+                        while tiling_stage.is_axis_moving():
+                            self.log.info(
+                                f"waiting for stage {tiling_stage_id}: {instrument_axis} ="
+                                f"{tiling_stage.position_mm} -> {tile_position} mm"
+                            )
+                            time.sleep(1.0)
+                    else:
+                        tile["position_mm"][instrument_axis] = 0
 
-                # prepare the scanning stage for step and shoot behavior
-                # TODO: change this to stage_scan behavior
-                self.log.info("setting up scanning stage")
+                # prepare the scanning stage for single axis stage scan
+                self.log.info("setting up scanning stage for single axis stage scan")
                 instrument_axis = scanning_stage.instrument_axis
                 print(str(instrument_axis))
-                tile_position = 1#tile["position_mm"][instrument_axis]
+                tile_position = tile["position_mm"][instrument_axis]
                 #backlash_removal_position = tile_position - 0.01
                 #self.log.info(f"moving scanning stage to {instrument_axis} = {backlash_removal_position} mm")
                 #scanning_stage.move_absolute_mm(tile_position - 0.01, wait=False)
@@ -962,10 +965,13 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
                                                 frame_interval_um=step_size_um,
                                                 pattern="raster",
                                                 retrace_speed_percent=70)
-                frame_rate_hz = 1.4
-                scan_speed_mms = step_size_um*frame_rate_hz/1000
-                setattr(scanning_stage,"speed_mm_s",scan_speed_mms)
+
+                acqtask = daq.tasks.get("co_acq_task", None)
+                frame_rate_hz = acqtask["timing"]["frequency_hz"] if not acqtask is None else 1.67
+                scan_speed_mms = numpy.abs(step_size_um*frame_rate_hz/1000)
+                scanning_stage.speed_mm_s = scan_speed_mms
                 print(f"Speed set to {scan_speed_mms}")
+                self.log.info(f"Scan speed is {scanning_stage.speed_mm_s}")
                 # wait on scanning stage
                 while scanning_stage.is_axis_moving():
                     self.log.info(
@@ -1005,11 +1011,13 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
                     """
                     daq.tasks["co_task"] = daq.tasks.get("co_acq_task")
                     self.log.info("co task: " + str(daq.tasks["co_task"]))
-                    pulse_count = writer.chunk_count_px  # number of pulses matched to number of frames in one chunk
+                    #pulse_count = writer.chunk_count_px  # number of pulses matched to number of frames in one chunk
                     # TODO: implement counter output triggering in voxel.daq.ni
                     # File "C:\Users\kevint\.conda\envs\voxel\Lib\site-packages\voxel\devices\daq\ni.py", line 193, in add_task
                     # raise ValueError(f"triggering not support for counter output tasks.")
-                    #daq.add_task("co", pulse_count)
+                    pulse_count = tile["steps"]
+                    self.log.info(f"setting up acquisition counter with {pulse_count} frames")
+                    daq.add_task("co", pulse_count)
 
                 # log daq values
                 for name, port_values in daq.tasks["ao_task"]["ports"].items():
@@ -1067,7 +1075,8 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
                         time.sleep(60)
                 # check local disk space and run if enough disk space
                 if self.check_local_disk_space(writer, compression_ratio):
-                    self.acquisition_engine(tile, base_filename, camera, daq, writer, processes, scanning_stage)
+                    daq_aux = self.instrument.daqs["usb-6363"] if "usb-6363" in self.instrument.daqs else None
+                    self.acquisition_engine(tile, base_filename, camera, daq, writer, processes, scanning_stage, daq_aux)
                 # if not enough local disk space, but file transfers are running
                 # wait for them to finish, because this will free up disk space
                 elif len(self.file_transfer_threads) != 0:
@@ -1091,9 +1100,6 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
                     file_transfer_threads[tile_num][tile_channel][repeat].filename = base_filename
                     self.log.info(f"starting file transfer for {base_filename}")
                     file_transfer_threads[tile_num][tile_channel][repeat].start()
-
-                self.log.info("starting stage scan")
-                scanning_stage.start()
 
         setattr(scanning_stage,"speed_mm_s",initial_speed_mms)
         print(f"Speed set to {initial_speed_mms}")
@@ -1135,3 +1141,183 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
                 for writer in writer_dict.values():
                     self.instrument.update_current_state_config()
                     self.instrument.save_config(Path(writer.path, writer.acquisition_name) / "instrument_config.yaml")
+
+
+    def acquisition_engine(
+        self, tile: dict, base_filename: str, camera, daq, writer, processes: dict, scanning_stage, daq_aux=None
+    ) -> None:
+        """
+        Run the acquisition engine.
+
+        :param tile: Tile configuration
+        :type tile: dict
+        :param base_filename: Base filename for the acquisition
+        :type base_filename: str
+        :param camera: Camera object
+        :type camera: Camera
+        :param daq: Data acquisition object
+        :type daq: DAQ
+        :param writer: Writer object
+        :type writer: Writer
+        :param processes: Dictionary of processes
+        :type processes: dict
+        :param scanning_stage: Scanning stage object
+        :type scanning_stage: ScanningStage
+        """
+        # initatlized shared double buffer and processes
+        self.log.info("setting up buffers")
+        process_buffers = dict()
+        chunk_lock = Lock()
+        img_buffer = SharedDoubleBuffer(
+            (writer.chunk_count_px, camera.image_height_px, camera.image_width_px),
+            dtype=writer.data_type,
+        )
+
+        # setup processes
+        self.log.info("setting up processes")
+        for process_name, process in processes.items():
+            process.row_count_px = camera.image_height_px
+            process.column_count_px = camera.image_width_px
+            process.binning = camera.binning
+            process.frame_count_px = tile["steps"]
+            process.filename = base_filename
+            img_bytes = (
+                numpy.prod(camera.image_height_px * camera.image_width_px) * numpy.dtype(process.data_type).itemsize
+            )
+            buffer = SharedMemory(create=True, size=int(img_bytes))
+            process_buffers[process_name] = buffer
+            process.buffer_image = numpy.ndarray(
+                (camera.image_height_px, camera.image_width_px),
+                dtype=process.data_type,
+                buffer=buffer.buf,
+            )
+            process.prepare(buffer.name)
+
+        # set up writer and camera
+        camera.prepare()
+        writer.prepare()
+        writer.start()
+        time.sleep(1)
+
+        # start camera and set frame number to 0
+        camera.frame_number = 0
+        camera.start()
+
+        # start processes
+        for process in processes.values():
+            process.start()
+
+        frame_index = 0
+        last_frame_index = tile["steps"] - 1
+
+        # Images arrive serialized in repeating channel order.
+        print(f"acquisition engine set for {last_frame_index + 1} steps")
+        for stack_index in range(tile["steps"]):
+            if self.stop_engine.is_set():
+                break
+            chunk_index = stack_index % writer.chunk_count_px
+            # Start a batch of pulses to generate more frames and movements.
+            if chunk_index == 0:
+                # log metrics from devices
+                laser_name = self.instrument.channels[tile["channel"]]["lasers"][0]
+                laser = self.instrument.lasers[laser_name]
+                #temperature_sensor, _ = self._grab_first(self.instrument.temperature_sensors)
+                memory_info = virtual_memory()
+                self.log.info(f"RAM in use = {memory_info.used / (1024 ** 3):.2f} GB")
+                self.log.info(f"laser {laser.id} power = {laser.power_mw:.2f} [mW]")
+                self.log.info(f"laser {laser.id} temperature = {laser.temperature_c:.2f} [mW]")
+                #self.log.info(f"camera {camera.id} sensor temperature = {camera.sensor_temperature_c:.2f} [C]")
+                #self.log.info(f"camera {camera.id} mainboard temperature = {camera.mainboard_temperature_c:.2f} [C]")
+                #self.log.info(
+                #    f"sensor {temperature_sensor.id} temperature = {temperature_sensor.temperature_c:.2f} [C]"
+                #)
+                #self.log.info(
+                #    f"sensor {temperature_sensor.id} humidity = {temperature_sensor.relative_humidity_percent:.2f} [%]"
+                #)
+
+                if stack_index == 0:
+                    
+                    # start the camera
+                    camera.stop()
+                    camera.prepare()
+                    camera.start()
+
+                    # Start the daq tasks.
+                    self.log.info("starting daq")
+                    for task in [daq.ao_task, daq.do_task, daq.co_task]:  # must start co task last in list
+                        if task is not None:
+                            task.start()
+
+                    self.log.info("starting stage scan")
+                    scanning_stage.start()
+
+                    if not daq_aux is None:
+                        self.log.info(f"adding auxiliary start with 1 pulse")
+                        daq_aux.add_task("co", 1)
+                        time.sleep(0.5)
+                        daq_aux.co_task.start()
+
+
+            # Grab camera frame and add to shared double buffer.
+            current_frame = camera.grab_frame()
+            img_buffer.add_image(current_frame)
+
+            # Log the current state of the camera.
+            camera.acquisition_state()
+
+            # Log the current state of the writer.
+            while not writer._log_queue.empty():
+                self.log.info(f"writer: {writer._log_queue.get_nowait()}")
+
+            # Dispatch either a full chunk of frames or the last chunk,
+            # which may not be a multiple of the chunk size.
+            if chunk_index + 1 == writer.chunk_count_px or stack_index == last_frame_index:
+                # HERE IS THE PROBLEM
+                #daq.stop()
+                # Toggle double buffer to continue writing images.
+                while not writer.done_reading.is_set() and not self.stop_engine.is_set():
+                    time.sleep(0.001)
+                with chunk_lock:
+                    img_buffer.toggle_buffers()
+                    writer.shm_name = img_buffer.read_buf_mem_name
+                    writer.done_reading.clear()
+
+            # check on processes
+            for process in processes.values():
+                while process.new_image.is_set():
+                    time.sleep(0.1)
+                process.buffer_image[:, :] = current_frame
+                process.new_image.set()
+
+            frame_index += 1
+
+        # stop the camera and set frame number back to 0
+        camera.stop()
+        camera.frame_number = 0
+
+        # wait for the writer to finish
+        writer.wait_to_finish()
+
+        # stop the daq
+        self.log.info("stopping daq")
+        daq.stop()
+
+        # disable scanning stage stepping
+        scanning_stage.mode = "off"  # turn off step and shoot mode
+
+        # log any statements in the writer log queue
+        while not writer._log_queue.empty():
+            self.log.info(writer._log_queue.get_nowait())
+
+        # wait for the processes to finish
+        for process in processes.values():
+            process.wait_to_finish()
+
+        # clean up the image buffer
+        self.log.info("deallocating shared double buffer.")
+        img_buffer.close_and_unlink()
+        del img_buffer
+        for buffer in process_buffers.values():
+            buffer.close()
+            buffer.unlink()
+            del buffer

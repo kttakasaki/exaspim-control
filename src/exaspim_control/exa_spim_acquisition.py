@@ -918,7 +918,7 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
                 self.log.info(f"starting tile {base_filename}")
 
                 # check length of scan
-                round_z_mm = 1 #int(tile["round_z_mm"])
+                round_z_mm = int(tile["round_z_mm"])
                 if (
                     tile["steps"] % round_z_mm != 0
                 ):  # must be divisible by round_z_mm for direct use of IMS pyramid volumes

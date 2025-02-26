@@ -120,7 +120,7 @@ acquisition_view:
             delegate: combo
             type: str
             items: ["64", "128", "256", "512", "1024", "2048"]
-            initial_value: "2048"
+            initial_value: "128"
           prechecks:
             delegate: combo
             type: str

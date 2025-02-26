@@ -952,32 +952,11 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
                 #backlash_removal_position = tile_position - 0.01
                 #self.log.info(f"moving scanning stage to {instrument_axis} = {backlash_removal_position} mm")
                 #scanning_stage.move_absolute_mm(tile_position - 0.01, wait=False)
+                scanning_stage.speed_mm_s = 1.0
+                print("Reposition speed set to 1 mm/s")
                 self.log.info(f"moving stage to {instrument_axis} = {tile_position} mm")
                 scanning_stage.move_absolute_mm(tile_position, wait=False)
                 #self.log.info("backlash on scanning stage removed")
-                step_size_um = tile["step_size"]
-                slow_instrument_axis = "y"
-                self.log.info(f"setting stage scan with frame interval {step_size_um} um")
-                scanning_stage.setup_single_axis_scan(fast_axis_start_position=tile_position,
-                                                #slow_axis_start_position=tile["position_mm"][slow_instrument_axis],
-                                                #slow_axis_stop_position=tile["position_mm"][slow_instrument_axis],
-                                                frame_count=tile["steps"],
-                                                frame_interval_um=step_size_um,
-                                                pattern="raster",
-                                                retrace_speed_percent=70)
-
-                acqtask = daq.tasks.get("co_acq_task", None)
-                frame_rate_hz = acqtask["timing"]["frequency_hz"] if not acqtask is None else 1.67
-                scan_speed_mms = numpy.abs(step_size_um*frame_rate_hz/1000)
-                scanning_stage.speed_mm_s = scan_speed_mms
-                print(f"Speed set to {scan_speed_mms}")
-                self.log.info(f"Scan speed is {scanning_stage.speed_mm_s}")
-                # wait on scanning stage
-                while scanning_stage.is_axis_moving():
-                    self.log.info(
-                        f"waiting for scanning stage: {instrument_axis} = "
-                        f"{scanning_stage.position_mm} -> {tile_position} mm"
-                    )
 
                 # setup channel i.e. laser and filter wheels
                 self.log.info(f"setting up channel: {tile_channel}")
@@ -1049,6 +1028,30 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
                 writer.z_voxel_size_um = tile["step_size"]
                 writer.filename = base_filename
                 writer.channel = tile["channel"]
+                
+                # wait on scanning stage movement to finish
+                while scanning_stage.is_axis_moving():
+                    self.log.info(
+                        f"waiting for scanning stage: {instrument_axis} = "
+                        f"{scanning_stage.position_mm} -> {tile_position} mm"
+                    )
+                # set up stage scan
+                step_size_um = tile["step_size"]
+                self.log.info(f"setting stage scan with frame interval {step_size_um} um")
+                scanning_stage.setup_single_axis_scan(fast_axis_start_position=tile_position,
+                                                #slow_axis_start_position=tile["position_mm"][slow_instrument_axis],
+                                                #slow_axis_stop_position=tile["position_mm"][slow_instrument_axis],
+                                                frame_count=tile["steps"],
+                                                frame_interval_um=step_size_um,
+                                                pattern="raster",
+                                                retrace_speed_percent=70)
+
+                acqtask = daq.tasks.get("co_acq_task", None)
+                frame_rate_hz = acqtask["timing"]["frequency_hz"] if not acqtask is None else 1.67
+                scan_speed_mms = numpy.abs(step_size_um*frame_rate_hz/1000)
+                scanning_stage.speed_mm_s = scan_speed_mms
+                print(f"Speed set to {scan_speed_mms}")
+                self.log.info(f"Scan speed is {scanning_stage.speed_mm_s}")
 
                 if tile["prechecks"] == "on":
                     # estimate the compresion ratio

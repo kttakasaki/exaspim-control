@@ -953,7 +953,7 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
                 #self.log.info(f"moving scanning stage to {instrument_axis} = {backlash_removal_position} mm")
                 #scanning_stage.move_absolute_mm(tile_position - 0.01, wait=False)
                 scanning_stage.speed_mm_s = 1.0
-                print("Reposition speed set to 1 mm/s")
+                self.log.info("stage speed set to 1 mm/s")
                 self.log.info(f"moving stage to {instrument_axis} = {tile_position} mm")
                 scanning_stage.move_absolute_mm(tile_position, wait=False)
                 #self.log.info("backlash on scanning stage removed")
@@ -1070,42 +1070,49 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
                 else:
                     compression_ratio = 1.0
 
+
+                # TODO: disk space checks and file transfer need vive implementation
+
                 # check local disk space and run if enough disk space
                 # check external disk space
-                if file_transfer:
-                    while not self.check_external_disk_space(writer, file_transfer, compression_ratio):
-                        # recheck external disk space every minute, if not enough space, do not run
-                        time.sleep(60)
+                #if file_transfer:
+                #    while not self.check_external_disk_space(writer, file_transfer, compression_ratio):
+                #        # recheck external disk space every minute, if not enough space, do not run
+                #        time.sleep(60)
                 # check local disk space and run if enough disk space
-                if self.check_local_disk_space(writer, compression_ratio):
-                    daq_aux = self.instrument.daqs["usb-6363"] if "usb-6363" in self.instrument.daqs else None
-                    self.acquisition_engine(tile, base_filename, camera, daq, writer, processes, scanning_stage, daq_aux)
+                #if self.check_local_disk_space(writer, compression_ratio):
+                #    daq_aux = self.instrument.daqs["usb-6363"] if "usb-6363" in self.instrument.daqs else None
+                #    self.acquisition_engine(tile, base_filename, camera, daq, writer, processes, scanning_stage, daq_aux)
                 # if not enough local disk space, but file transfers are running
                 # wait for them to finish, because this will free up disk space
-                elif len(self.file_transfer_threads) != 0:
-                    # check if any transfer threads are still running, if so wait on them
-                    for tile_num, threads_dict in self.file_transfer_threads.items():
-                        for tile_channel, transfer_thread in threads_dict.items():
-                            if transfer_thread.is_alive():
-                                transfer_thread.wait_until_finished()
+                #elif len(self.file_transfer_threads) != 0:
+                #    # check if any transfer threads are still running, if so wait on them
+                #    for tile_num, threads_dict in self.file_transfer_threads.items():
+                #        for tile_channel, transfer_thread in threads_dict.items():
+                #            if transfer_thread.is_alive():
+                #                transfer_thread.wait_until_finished()
                 # otherwise this is the first tile and there is simply not enough disk space
                 # for the first tile
-                else:
-                    raise ValueError("not enough local disk space")
+                #else:
+                #    raise ValueError("not enough local disk space")
 
                 # create and start transfer threads from previous tile
-                if file_transfer:
-                    if tile_num not in file_transfer_threads:
-                        file_transfer_threads[tile_num] = dict()
-                    if tile_channel not in file_transfer_threads[tile_num]:
-                        file_transfer_threads[tile_num][tile_channel] = dict()
-                    file_transfer_threads[tile_num][tile_channel][repeat] = file_transfer
-                    file_transfer_threads[tile_num][tile_channel][repeat].filename = base_filename
-                    self.log.info(f"starting file transfer for {base_filename}")
-                    file_transfer_threads[tile_num][tile_channel][repeat].start()
+                #if file_transfer:
+                #    if tile_num not in file_transfer_threads:
+                #        file_transfer_threads[tile_num] = dict()
+                #    if tile_channel not in file_transfer_threads[tile_num]:
+                #        file_transfer_threads[tile_num][tile_channel] = dict()
+                #    file_transfer_threads[tile_num][tile_channel][repeat] = file_transfer
+                #    file_transfer_threads[tile_num][tile_channel][repeat].filename = base_filename
+                #    self.log.info(f"starting file transfer for {base_filename}")
+                #    file_transfer_threads[tile_num][tile_channel][repeat].start()
+
+                # start acquisition with auxiliary start (usb 6363 emulating stage SYNC)
+                daq_aux = self.instrument.daqs["usb-6363"] if "usb-6363" in self.instrument.daqs else None
+                self.acquisition_engine(tile, base_filename, camera, daq, writer, processes, scanning_stage, daq_aux)
 
         setattr(scanning_stage,"speed_mm_s",initial_speed_mms)
-        print(f"Speed set to {initial_speed_mms}")
+        self.log.info(f"Speed set to {initial_speed_mms}")
 
         # wait for last tiles file transfer
         if file_transfer:

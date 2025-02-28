@@ -70,8 +70,10 @@ class MetadataLaunch:
         """
         Finalize the acquisition process.
         """
+
         self.log.info("Finalizing acquisition")
         # create and save acquisition.json
+        ''' FIXME: KT edit: this is a complicated post-acquisition reorganization of files and metadata which creates a middleware orchestration challenge
         if getattr(self.acquisition, "file_transfers", {}) != {}:  # save to external paths
             for device_name, transfer_dict in getattr(self.acquisition, "file_transfers", {}).items():
                 for transfer in transfer_dict.values():
@@ -117,6 +119,7 @@ class MetadataLaunch:
                     os.rename(str(Path(save_to, file)), str(Path(save_to, "exaSPIM", file)))
                 if file.endswith(".tiff") or file.endswith(".log") or file.endswith(".yaml"):
                     os.rename(str(Path(save_to, file)), str(Path(save_to, "derivatives", file)))
+        '''
 
     def parse_metadata(self, external_drive: str, local_drive: str) -> acquisition.Acquisition:
         """

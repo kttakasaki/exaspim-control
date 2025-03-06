@@ -15,7 +15,7 @@ instrument:
       properties:
         exposure_time_ms: 10.0
         pixel_type: mono16
-        height_px: 5320
+        height_px: 10640
         width_px: 14192
         trigger:
           mode: on
@@ -118,9 +118,9 @@ instrument:
                       '639': 0.0
                   end_time_ms:
                     channels:
-                      '488': 302.0
-                      '561': 302.0
-                      '639': 302.0
+                      '488': 544.0
+                      '561': 544.0
+                      '639': 544.0
                   amplitude_volts:
                     channels:
                       '488': 0.125
@@ -201,9 +201,9 @@ instrument:
                       '639': 15.0
                   end_time_ms:
                     channels:
-                      '488': 305.0
-                      '561': 305.0
-                      '639': 305.0
+                      '488': 549.0
+                      '561': 549.0
+                      '639': 549.0
                   max_volts:
                     channels:
                       '488': 5.0
@@ -227,9 +227,9 @@ instrument:
                       '639': 15.0
                   end_time_ms:
                     channels:
-                      '488': 305.0
-                      '561': 305.0
-                      '639': 305.0
+                      '488': 549.0
+                      '561': 549.0
+                      '639': 549.0
                   max_volts:
                     channels:
                       '488': 0.0
@@ -253,9 +253,9 @@ instrument:
                       '639': 15.0
                   end_time_ms:
                     channels:
-                      '488': 305.0
-                      '561': 305.0
-                      '639': 305.0
+                      '488': 549.0
+                      '561': 549.0
+                      '639': 549.0
                   max_volts:
                     channels:
                       '488': 0.0
@@ -267,8 +267,8 @@ instrument:
                       '561': 0.0
                       '639': 0.0
             timing:
-              period_time_ms: 305.0
-              rest_time_ms: 5.0
+              period_time_ms: 544.0
+              rest_time_ms: 11.0
               retriggerable: on
               sample_mode: finite
               sampling_frequency_hz: 10000
@@ -280,7 +280,7 @@ instrument:
             - ctr0
             name: co live task
             timing:
-              frequency_hz: 3.2
+              frequency_hz: 1.75
               output_port: PFI0
               trigger_mode: off
           co_acq_task:
@@ -288,7 +288,7 @@ instrument:
             - ctr0
             name: co acq task
             timing:
-              frequency_hz: 3.2
+              frequency_hz: 1.75
               output_port: PFI0
               trigger_mode: on
               trigger_polarity: rising

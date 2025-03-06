@@ -1096,20 +1096,25 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
                 #else:
                 #    raise ValueError("not enough local disk space")
 
-                # create and start transfer threads from previous tile
-                #if file_transfer:
-                #    if tile_num not in file_transfer_threads:
-                #        file_transfer_threads[tile_num] = dict()
-                #    if tile_channel not in file_transfer_threads[tile_num]:
-                #        file_transfer_threads[tile_num][tile_channel] = dict()
-                #    file_transfer_threads[tile_num][tile_channel][repeat] = file_transfer
-                #    file_transfer_threads[tile_num][tile_channel][repeat].filename = base_filename
-                #    self.log.info(f"starting file transfer for {base_filename}")
-                #    file_transfer_threads[tile_num][tile_channel][repeat].start()
-
                 # start acquisition with auxiliary start (usb 6363 emulating stage SYNC)
                 daq_aux = self.instrument.daqs["usb-6363"] if "usb-6363" in self.instrument.daqs else None
                 self.acquisition_engine(tile, base_filename, camera, daq, writer, processes, scanning_stage, daq_aux)
+
+                # create and start transfer threads from previous tile
+                if file_transfer:
+                    if tile_num not in file_transfer_threads:
+                        file_transfer_threads[tile_num] = dict()
+                    if tile_channel not in file_transfer_threads[tile_num]:
+                        file_transfer_threads[tile_num][tile_channel] = dict()
+                    file_transfer_threads[tile_num][tile_channel][repeat] = file_transfer
+                    file_transfer_threads[tile_num][tile_channel][repeat].filename = base_filename
+                    self.log.info(f"starting file transfer for {base_filename}")
+                    file_transfer_threads[tile_num][tile_channel][repeat].start()
+                    # for now wait until tile transfer finishes
+                    time.sleep(1)
+                    file_transfer_threads[tile_num][tile_channel][repeat].wait_until_finished()
+
+
 
         setattr(scanning_stage,"speed_mm_s",initial_speed_mms)
         self.log.info(f"Speed set to {initial_speed_mms}")
@@ -1282,10 +1287,11 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
             # Dispatch either a full chunk of frames or the last chunk,
             # which may not be a multiple of the chunk size.
             if chunk_index + 1 == writer.chunk_count_px or stack_index == last_frame_index:
-                # HERE IS THE PROBLEM
+                # HERE IS THE DAQ PROBLEM
                 #daq.stop()
                 # Toggle double buffer to continue writing images.
                 while not writer.done_reading.is_set() and not self.stop_engine.is_set():
+                    # this might be the stalling problem...
                     time.sleep(0.001)
                 with chunk_lock:
                     img_buffer.toggle_buffers()

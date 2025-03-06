@@ -19,41 +19,41 @@ acquisition:
         format: [ instrument_type, subject_id ]
   operations:
     vp-151mx:
-      imaris:
-        type: writer
-        driver: voxel.writers.imaris
-        module: ImarisWriter
-        init:
-          path: C:\\DATA
-        properties:
-          compression: lz4shuffle
-          data_type: uint16
-      #aqz:
+      #imaris:
       #  type: writer
-      #  driver: voxel.writers.zarr
-      #  module: ZarrWriter
+      #  driver: voxel.writers.imaris
+      #  module: ImarisWriter
       #  init:
       #    path: C:\\DATA
       #  properties:
-      #    compression: zstd
+      #    compression: lz4shuffle
       #    data_type: uint16
-      #    chunk_size_x_px: 128
-      #    chunk_size_y_px: 128
-      #    chunk_size_z_px: 32
-      #    multiscale: True
-      #    shuffle: False
-      #    version: v3
-      #robocopy:
-      #  type: file_transfer
-      #  driver: voxel.file_transfers.robocopy_zarr
-      #  module: RobocopyFileTransfer
-      #  init:
-      #    external_path: D:\\
-      #    local_path: C:\\DATA
-      #  properties:
-      #    verify_transfer: True
-      #    max_retry: 3
-      #    timeout_s: 60
+      aqz:
+        type: writer
+        driver: voxel.writers.zarr
+        module: ZarrWriter
+        init:
+          path: D:\\DATA
+        properties:
+          compression: zstd
+          data_type: uint16
+          chunk_size_x_px: 128
+          chunk_size_y_px: 128
+          chunk_size_z_px: 32
+          multiscale: False
+          shuffle: False
+          version: v3
+      robocopy:
+        type: file_transfer
+        driver: voxel.file_transfers.robocopy_zarr
+        module: RobocopyFileTransfer
+        init:
+          external_path: C:\\DATA
+          local_path: D:\\DATA
+        properties:
+          verify_transfer: True
+          max_retry: 3
+          timeout_s: 60
       # max_projection:
       #   type: process
       #   driver: voxel.processes.max_projection.cpu.numpy

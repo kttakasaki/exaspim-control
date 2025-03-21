@@ -6,7 +6,7 @@ acquisition:
       metadata_dictionary:
         instrument_type: exaSPIM
         subject_id: 'H17_PO11'
-        experimenter_full_name: [adam glaser]
+        experimenter_full_name: [kevin takasaki]
         chamber_immersion:
           medium: other
           refractive_index: 1.33
@@ -41,7 +41,7 @@ acquisition:
           chunk_size_y_px: 128
           chunk_size_z_px: 32
           multiscale: False
-          shuffle: False
+          shuffle: True
           version: v3
       robocopy:
         type: file_transfer

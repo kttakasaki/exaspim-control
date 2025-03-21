@@ -1191,6 +1191,7 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
         # setup processes
         self.log.info("setting up processes")
         for process_name, process in processes.items():
+            print(f"process: {process_name}")
             process.row_count_px = camera.image_height_px
             process.column_count_px = camera.image_width_px
             process.binning = camera.binning
@@ -1278,7 +1279,7 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
             img_buffer.add_image(current_frame)
 
             # Log the current state of the camera.
-            camera.acquisition_state()
+            #camera.acquisition_state()
 
             # Log the current state of the writer.
             while not writer._log_queue.empty():
@@ -1287,6 +1288,8 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
             # Dispatch either a full chunk of frames or the last chunk,
             # which may not be a multiple of the chunk size.
             if chunk_index + 1 == writer.chunk_count_px or stack_index == last_frame_index:
+                # Log the current state of the camera.
+                camera.acquisition_state()
                 # HERE IS THE DAQ PROBLEM
                 #daq.stop()
                 # Toggle double buffer to continue writing images.
@@ -1301,6 +1304,7 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
             # check on processes
             for process in processes.values():
                 while process.new_image.is_set():
+                    print("process looping")
                     time.sleep(0.1)
                 process.buffer_image[:, :] = current_frame
                 process.new_image.set()

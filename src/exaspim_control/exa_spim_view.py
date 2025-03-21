@@ -442,7 +442,7 @@ class ExASPIMAcquisitionView(AcquisitionView):
     acquisitionEnded = Signal()
     acquisitionStarted = Signal((datetime,))
 
-    def __init__(self, acquisition: object, instrument_view: ExASPIMInstrumentView):
+    def __init__(self, acquisition: object, instrument_view: ExASPIMInstrumentView, update_image: bool=False):
         """
         Initialize the ExASPIMAcquisitionView object.
 
@@ -456,6 +456,11 @@ class ExASPIMAcquisitionView(AcquisitionView):
         instrument_view.config["acquisition_view"]["unit"] = "mm"
         super().__init__(acquisition=acquisition, instrument_view=instrument_view)
         self.setWindowTitle("ExA-SPIM control")
+        # FIXME: does this increase loop speed?
+        if not update_image:
+            print(f"update image disabled: killing {len(self.property_workers)} property workers")
+            self.property_workers = []
+
 
     def create_acquisition_widget(self) -> QSplitter:
         """

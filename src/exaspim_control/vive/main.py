@@ -58,7 +58,7 @@ if __name__ == "__main__":
         instrument=instrument, config_filename=ACQUISITION_YAML, yaml_handler=yaml, log_level="INFO"
     )
     instrument_view = ExASPIMInstrumentView(instrument, GUI_YAML, log_level="INFO")
-    acquisition_view = ExASPIMAcquisitionView(acquisition, instrument_view)
+    acquisition_view = ExASPIMAcquisitionView(acquisition, instrument_view, update_image=False)
 
     MetadataLaunch(
         instrument=instrument,

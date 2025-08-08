@@ -13,9 +13,10 @@ instrument:
       init:
         id: MP151BBX029
       properties:
-        exposure_time_ms: 3.0
+        exposure_time_ms: 4.4
         pixel_type: mono12
-        height_px: 10640
+        line_interval_us: 20.0
+        height_px: 5320
         width_px: 14192
         trigger:
           mode: on
@@ -118,17 +119,17 @@ instrument:
                       '639': 0.0
                   end_time_ms:
                     channels:
-                      '488': 190.0
-                      '561': 190.0
-                      '639': 190.0
+                      '488': 141.0
+                      '561': 141.0
+                      '639': 141.0
                   amplitude_volts:
                     channels:
-                      '488': 0.125
+                      '488': 0.073
                       '561': 2.795
                       '639': 2.795
                   offset_volts:
                     channels:
-                      '488': 2.42
+                      '488': 2.44
                       '561': 5.39
                       '639': 5.62
                   cutoff_frequency_hz:
@@ -144,14 +145,14 @@ instrument:
                 parameters:
                   start_time_ms:
                     channels:
+                      '488': 15.0
+                      '561': 15.0
+                      '639': 15.0
+                  end_time_ms:
+                    channels:
                       '488': 25.0
                       '561': 25.0
                       '639': 25.0
-                  end_time_ms:
-                    channels:
-                      '488': 28.0
-                      '561': 28.0
-                      '639': 28.0
                   max_volts:
                     channels:
                       '488': 5.0
@@ -196,14 +197,14 @@ instrument:
                 parameters:
                   start_time_ms:
                     channels:
-                      '488': 15.0
-                      '561': 15.0
-                      '639': 15.0
+                      '488': 10.0
+                      '561': 10.0
+                      '639': 10.0
                   end_time_ms:
                     channels:
-                      '488': 195.0
-                      '561': 195.0
-                      '639': 195.0
+                      '488': 130.0
+                      '561': 130.0
+                      '639': 130.0
                   max_volts:
                     channels:
                       '488': 5.0
@@ -222,14 +223,14 @@ instrument:
                 parameters:
                   start_time_ms:
                     channels:
-                      '488': 15.0
-                      '561': 15.0
-                      '639': 15.0
+                      '488': 10.0
+                      '561': 10.0
+                      '639': 10.0
                   end_time_ms:
                     channels:
-                      '488': 195.0
-                      '561': 195.0
-                      '639': 195.0
+                      '488': 130.0
+                      '561': 130.0
+                      '639': 130.0
                   max_volts:
                     channels:
                       '488': 0.0
@@ -248,14 +249,14 @@ instrument:
                 parameters:
                   start_time_ms:
                     channels:
-                      '488': 15.0
-                      '561': 15.0
-                      '639': 15.0
+                      '488': 10.0
+                      '561': 10.0
+                      '639': 10.0
                   end_time_ms:
                     channels:
-                      '488': 195.0
-                      '561': 195.0
-                      '639': 195.0
+                      '488': 130.0
+                      '561': 130.0
+                      '639': 130.0
                   max_volts:
                     channels:
                       '488': 0.0
@@ -267,8 +268,8 @@ instrument:
                       '561': 0.0
                       '639': 0.0
             timing:
-              period_time_ms: 199.0
-              rest_time_ms: 1.0
+              period_time_ms: 141.0
+              rest_time_ms: 4.0
               retriggerable: on
               sample_mode: finite
               sampling_frequency_hz: 10000
@@ -280,7 +281,7 @@ instrument:
             - ctr0
             name: co live task
             timing:
-              frequency_hz: 1.75
+              frequency_hz: 3.4
               output_port: PFI0
               trigger_mode: off
           co_acq_task:
@@ -288,7 +289,7 @@ instrument:
             - ctr0
             name: co acq task
             timing:
-              frequency_hz: 3.5
+              frequency_hz: 6.8
               output_port: PFI0
               trigger_mode: on
               trigger_polarity: rising

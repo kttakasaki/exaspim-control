@@ -5,7 +5,7 @@ acquisition:
     init:
       metadata_dictionary:
         instrument_type: exaSPIM
-        subject_id: 'H17_PO11'
+        subject_id: 'ViVExa1'
         experimenter_full_name: [kevin takasaki]
         chamber_immersion:
           medium: other

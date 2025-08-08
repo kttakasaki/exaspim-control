@@ -15,7 +15,7 @@ instrument:
       properties:
         exposure_time_ms: 10.0
         pixel_type: mono16
-        height_px: 10640
+        height_px: 7096
         width_px: 14192
         trigger:
           mode: on
@@ -118,17 +118,17 @@ instrument:
                       '639': 0.0
                   end_time_ms:
                     channels:
-                      '488': 544.0
-                      '561': 544.0
-                      '639': 544.0
+                      '488': 392.0
+                      '561': 392.0
+                      '639': 392.0
                   amplitude_volts:
                     channels:
-                      '488': 0.125
+                      '488': 0.093
                       '561': 2.795
                       '639': 2.795
                   offset_volts:
                     channels:
-                      '488': 2.42
+                      '488': 2.435
                       '561': 5.39
                       '639': 5.62
                   cutoff_frequency_hz:
@@ -136,32 +136,6 @@ instrument:
                       '488': 1000
                       '561': 1000
                       '639': 1000
-              stage:
-                port: ao17
-                waveform: square wave
-                device_max_volts: 5.0
-                device_min_volts: 0.0
-                parameters:
-                  start_time_ms:
-                    channels:
-                      '488': 544.0
-                      '561': 544.0
-                      '639': 544.0
-                  end_time_ms:
-                    channels:
-                      '488': 554.0
-                      '561': 554.0
-                      '639': 554.0
-                  max_volts:
-                    channels:
-                      '488': 5.0
-                      '561': 5.0
-                      '639': 5.0
-                  min_volts:
-                    channels:
-                      '488': 0.0
-                      '561': 0.0
-                      '639': 0.0
               camera:
                 port: ao2
                 waveform: square wave
@@ -188,6 +162,32 @@ instrument:
                       '488': 0.0
                       '561': 0.0
                       '639': 0.0
+              stage:
+                port: ao0
+                waveform: square wave
+                device_max_volts: 5.0
+                device_min_volts: 0.0
+                parameters:
+                  start_time_ms:
+                    channels:
+                      '488': 0.0
+                      '561': 0.0
+                      '639': 0.0
+                  end_time_ms:
+                    channels:
+                      '488': 5.0
+                      '561': 5.0
+                      '639': 5.0
+                  max_volts:
+                    channels:
+                      '488': 5.0
+                      '561': 5.0
+                      '639': 5.0
+                  min_volts:
+                    channels:
+                      '488': 0.0
+                      '561': 0.0
+                      '639': 0.0
               488 nm:
                 port: ao5
                 waveform: square wave
@@ -201,9 +201,9 @@ instrument:
                       '639': 15.0
                   end_time_ms:
                     channels:
-                      '488': 549.0
-                      '561': 549.0
-                      '639': 549.0
+                      '488': 395.0
+                      '561': 395.0
+                      '639': 395.0
                   max_volts:
                     channels:
                       '488': 5.0
@@ -227,9 +227,9 @@ instrument:
                       '639': 15.0
                   end_time_ms:
                     channels:
-                      '488': 549.0
-                      '561': 549.0
-                      '639': 549.0
+                      '488': 395.0
+                      '561': 395.0
+                      '639': 395.0
                   max_volts:
                     channels:
                       '488': 0.0
@@ -253,9 +253,9 @@ instrument:
                       '639': 15.0
                   end_time_ms:
                     channels:
-                      '488': 549.0
-                      '561': 549.0
-                      '639': 549.0
+                      '488': 395.0
+                      '561': 395.0
+                      '639': 395.0
                   max_volts:
                     channels:
                       '488': 0.0
@@ -267,8 +267,8 @@ instrument:
                       '561': 0.0
                       '639': 0.0
             timing:
-              period_time_ms: 544.0
-              rest_time_ms: 11.0
+              period_time_ms: 395.0
+              rest_time_ms: 5.0
               retriggerable: on
               sample_mode: finite
               sampling_frequency_hz: 10000
@@ -280,7 +280,7 @@ instrument:
             - ctr0
             name: co live task
             timing:
-              frequency_hz: 1.67
+              frequency_hz: 2.5
               output_port: PFI0
               trigger_mode: off
           co_acq_task:
@@ -288,7 +288,7 @@ instrument:
             - ctr0
             name: co acq task
             timing:
-              frequency_hz: 1.67
+              frequency_hz: 2.5
               output_port: PFI0
               trigger_mode: on
               trigger_polarity: rising

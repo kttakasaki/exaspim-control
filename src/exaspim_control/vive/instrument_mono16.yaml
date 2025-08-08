@@ -123,7 +123,7 @@ instrument:
                       '639': 302.0
                   amplitude_volts:
                     channels:
-                      '488': 0.070
+                      '488': 0.065
                       '561': 2.795
                       '639': 2.795
                   offset_volts:

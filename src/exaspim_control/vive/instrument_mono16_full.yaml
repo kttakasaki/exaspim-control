@@ -13,8 +13,8 @@ instrument:
       init:
         id: MP151BBX029
       properties:
-        exposure_time_ms: 3.0
-        pixel_type: mono12
+        exposure_time_ms: 10.0
+        pixel_type: mono16
         height_px: 10640
         width_px: 14192
         trigger:
@@ -118,9 +118,9 @@ instrument:
                       '639': 0.0
                   end_time_ms:
                     channels:
-                      '488': 190.0
-                      '561': 190.0
-                      '639': 190.0
+                      '488': 392.0
+                      '561': 392.0
+                      '639': 392.0
                   amplitude_volts:
                     channels:
                       '488': 0.125
@@ -149,9 +149,35 @@ instrument:
                       '639': 25.0
                   end_time_ms:
                     channels:
-                      '488': 28.0
-                      '561': 28.0
-                      '639': 28.0
+                      '488': 35.0
+                      '561': 35.0
+                      '639': 35.0
+                  max_volts:
+                    channels:
+                      '488': 5.0
+                      '561': 5.0
+                      '639': 5.0
+                  min_volts:
+                    channels:
+                      '488': 0.0
+                      '561': 0.0
+                      '639': 0.0
+              stage:
+                port: ao0
+                waveform: square wave
+                device_max_volts: 5.0
+                device_min_volts: 0.0
+                parameters:
+                  start_time_ms:
+                    channels:
+                      '488': 0.0
+                      '561': 0.0
+                      '639': 0.0
+                  end_time_ms:
+                    channels:
+                      '488': 5.0
+                      '561': 5.0
+                      '639': 5.0
                   max_volts:
                     channels:
                       '488': 5.0
@@ -175,9 +201,9 @@ instrument:
                       '639': 15.0
                   end_time_ms:
                     channels:
-                      '488': 195.0
-                      '561': 195.0
-                      '639': 195.0
+                      '488': 549.0
+                      '561': 549.0
+                      '639': 549.0
                   max_volts:
                     channels:
                       '488': 5.0
@@ -201,9 +227,9 @@ instrument:
                       '639': 15.0
                   end_time_ms:
                     channels:
-                      '488': 195.0
-                      '561': 195.0
-                      '639': 195.0
+                      '488': 549.0
+                      '561': 549.0
+                      '639': 549.0
                   max_volts:
                     channels:
                       '488': 0.0
@@ -227,9 +253,9 @@ instrument:
                       '639': 15.0
                   end_time_ms:
                     channels:
-                      '488': 195.0
-                      '561': 195.0
-                      '639': 195.0
+                      '488': 549.0
+                      '561': 549.0
+                      '639': 549.0
                   max_volts:
                     channels:
                       '488': 0.0
@@ -241,8 +267,8 @@ instrument:
                       '561': 0.0
                       '639': 0.0
             timing:
-              period_time_ms: 199.0
-              rest_time_ms: 1.0
+              period_time_ms: 544.0
+              rest_time_ms: 11.0
               retriggerable: on
               sample_mode: finite
               sampling_frequency_hz: 10000
@@ -254,7 +280,7 @@ instrument:
             - ctr0
             name: co live task
             timing:
-              frequency_hz: 2.0
+              frequency_hz: 1.75
               output_port: PFI0
               trigger_mode: off
           co_acq_task:
@@ -262,7 +288,7 @@ instrument:
             - ctr0
             name: co acq task
             timing:
-              frequency_hz: 4.9
+              frequency_hz: 1.75
               output_port: PFI0
               trigger_mode: on
               trigger_polarity: rising

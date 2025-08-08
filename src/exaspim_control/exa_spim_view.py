@@ -362,6 +362,14 @@ class ExASPIMInstrumentView(InstrumentView):
             self.grab_frames_worker.yielded.connect(self.update_layer)
 
 
+    def reset_camera_parameters(self,camera):
+        print("trying to set big packing mode")
+        setattr(camera,"bit_packing_mode","msb")
+        print("trying to set height")
+        height_px = camera.height_px
+        setattr(camera,"height_px",height_px)
+
+
     def setup_live(self, camera_name: str, frames=float("inf")) -> None:
         """
         Set up for either livestream or snapshot
@@ -386,8 +394,11 @@ class ExASPIMInstrumentView(InstrumentView):
         self.grab_frames_worker.finished.connect(lambda: self.dismantle_live(camera_name))
         self.grab_frames_worker.start()
 
+        #setattr(self.instrument.cameras[camera_name],"bit_packing_mode","msb")
+        self.reset_camera_parameters(self.instrument.cameras[camera_name])
         self.instrument.cameras[camera_name].prepare()
         self.instrument.cameras[camera_name].start(frames)
+        #print("bit packing mode is " + str(getattr(self.instrument.cameras[camera_name],'bit_packing_mode')))
 
         for laser in self.channels[self.livestream_channel].get("lasers", []):
             self.log.info(f"Enabling laser {laser}")

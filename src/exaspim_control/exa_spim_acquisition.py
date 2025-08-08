@@ -856,6 +856,13 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
     
     def __init__(self, instrument: Instrument, config_filename: str, yaml_handler: YAML, log_level="INFO"):
         super().__init__(instrument,config_filename,yaml_handler,log_level)
+
+    def reset_camera_parameters(self,camera):
+        print("trying to set big packing mode")
+        setattr(camera,"bit_packing_mode","msb")
+        print("trying to set height")
+        height_px = camera.height_px
+        setattr(camera,"height_px",height_px)
         
     def run(self) -> None:
         """
@@ -1098,6 +1105,7 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
 
                 # start acquisition with auxiliary start (usb 6363 emulating stage SYNC)
                 daq_aux = self.instrument.daqs["usb-6363"] if "usb-6363" in self.instrument.daqs else None
+                self.reset_camera_parameters(camera)
                 self.acquisition_engine(tile, base_filename, camera, daq, writer, processes, scanning_stage, daq_aux)
 
                 # create and start transfer threads from previous tile
@@ -1254,9 +1262,10 @@ class ViVExASPIMAcquisition(ExASPIMAcquisition):
                 if stack_index == 0:
                     
                     # start the camera
-                    camera.stop()
-                    camera.prepare()
-                    camera.start()
+                    #camera.stop()
+                    #camera.prepare()
+                    #camera.start()
+                    print("bit packing mode is " + str(getattr(camera,'bit_packing_mode')))
 
                     # Start the daq tasks.
                     self.log.info("starting daq")
